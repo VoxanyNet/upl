@@ -1,14 +1,16 @@
 use std::{fs::{self, File, read}, path::PathBuf, process::exit, sync::Arc, time::Duration};
 
 use directories::UserDirs;
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use reqwest::{StatusCode, blocking::Client};
 use reqwest_cookie_store::CookieStoreMutex;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    file: PathBuf
+    file: Option<PathBuf>,
+    #[clap(long, short, action=ArgAction::SetTrue)]
+    login: bool
 }
 fn main() {
 
@@ -21,6 +23,8 @@ fn main() {
     fs::create_dir_all(&data_dir).unwrap();
 
     println!("{:?}", &cookie_path);
+
+    
 
     let mut need_to_login = false;
 
@@ -46,12 +50,20 @@ fn main() {
         .cookie_provider(cookie_store.clone())
         .build().unwrap();
 
-    if need_to_login {
+    if need_to_login || args.login {
         login(&client, &cookie_store, &cookie_path);
     }
+
+    if args.login {
+        return
+    }
+
+    let file = args.file.unwrap();
+
+
     
 
-    let multipart = reqwest::blocking::multipart::Form::new().file("file", args.file).unwrap();
+    let multipart = reqwest::blocking::multipart::Form::new().file("file", file).unwrap();
 
     let resp = client.post("https://upload.voxany.net")
         .multipart(multipart)
